@@ -152,10 +152,24 @@ void BindingsBenchmark::drawBenchmark()
             glGenBuffers(static_cast<GLsizei>(mBuffers.size()), mBuffers.data());
         }
 
-        for (size_t bufferIdx = 0; bufferIdx < mBuffers.size(); bufferIdx++)
+        // Fetch a few variables from the underlying data structure to keep them
+        // in registers. Otherwise each loop iteration they'll be fetched again
+        // because the compiler cannot guarantee that those are unchanged when
+        // calling glBindBuffer.
+        auto buffers = mBuffers.data();
+        auto bindingPoints = mBindingPoints.data();
+        auto bindingPointsSize = int(mBindingPoints.size());
+        auto buffersSize       = mBuffers.size();
+        auto bindingIndex = it % bindingPointsSize;
+        for (size_t bufferIdx = 0; bufferIdx < buffersSize; bufferIdx++)
         {
-            GLenum binding = mBindingPoints[(bufferIdx + it) % mBindingPoints.size()];
-            glBindBuffer(binding, mBuffers[bufferIdx]);
+            GLenum binding = bindingPoints[bindingIndex];
+            glBindBuffer(binding, buffers[bufferIdx]);
+
+            // Instead of doing a costly division to get an index in the range
+            // [0,bindingPointsSize) do a bounds-check and reset the index.
+            ++bindingIndex;
+            bindingIndex = (bindingIndex >= bindingPointsSize) ? 0 : bindingIndex;
         }
 
         // Delete all the buffers
