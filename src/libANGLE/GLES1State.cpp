@@ -211,11 +211,11 @@ int GLES1State::getCurrentMatrixStackDepth(GLenum queryType) const
     switch (queryType)
     {
         case GL_MODELVIEW_STACK_DEPTH:
-            return mModelviewMatrices.size();
+            return int(mModelviewMatrices.size());
         case GL_PROJECTION_STACK_DEPTH:
-            return mProjectionMatrices.size();
+            return int(mProjectionMatrices.size());
         case GL_TEXTURE_STACK_DEPTH:
-            return mTextureMatrices[mGLState->getActiveSampler()].size();
+            return int(mTextureMatrices[mGLState->getActiveSampler()].size());
         default:
             UNREACHABLE();
             return 0;
