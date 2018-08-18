@@ -2879,9 +2879,6 @@ bool State::isCurrentTransformFeedback(const TransformFeedback *tf) const
 {
     return tf == mTransformFeedback.get();
 }
-bool State::isCurrentVertexArray(const VertexArray *va) const
-{
-    return va == mVertexArray;
-}
+
 
 }  // namespace gl

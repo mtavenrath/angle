@@ -117,9 +117,23 @@ class Buffer final : public RefCountObject, public LabeledObject
 
     bool isBound() const;
     bool isBoundForTransformFeedbackAndOtherUse() const;
-    void onBindingChanged(const Context *context, bool bound, BufferBinding target, bool indexed);
+    void onBindingChanged(const Context *context, bool bound, BufferBinding target, bool indexed) {
+        ASSERT(bound || mState.mBindingCount > 0);
+        // bound should be a compile time constant and thus the compiler can remove the conditional here
+        mState.mBindingCount += bound ? 1 : -1;
+        // With onBindingChanged inline the compiler should remove the condition & call in case
+        // target is not TransformFeedback. 
+        if (target == BufferBinding::TransformFeedback)
+        {
+            onBindingChangedTransform(context, bound, indexed);
+        }
+    }
 
   private:
+    void onBindingChangedTransform(const Context *context,
+                                   bool bound,
+                                   bool indexed);
+
     BufferState mState;
     rx::BufferImpl *mImpl;
 
