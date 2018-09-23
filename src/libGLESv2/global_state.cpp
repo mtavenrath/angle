@@ -24,21 +24,15 @@ Context *GetGlobalContext()
     return thread->getContext();
 }
 
-Context *GetValidGlobalContext()
-{
-    egl::Thread *thread = egl::GetCurrentThread();
-    return thread->getValidContext();
-}
-
 }  // namespace gl
 
 namespace egl
 {
 
+TLSIndex threadTLS = TLS_INVALID_INDEX;
 namespace
 {
 
-static TLSIndex threadTLS = TLS_INVALID_INDEX;
 Debug *g_Debug            = nullptr;
 
 Thread *AllocateCurrentThread()
@@ -70,7 +64,7 @@ void AllocateDebug()
 
 }  // anonymous namespace
 
-Thread *GetCurrentThread()
+Thread *GetCurrentThreadInit()
 {
     // Create a TLS index if one has not been created for this DLL
     if (threadTLS == TLS_INVALID_INDEX)

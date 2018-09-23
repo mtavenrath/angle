@@ -9,28 +9,46 @@
 #ifndef LIBGLESV2_GLOBALSTATE_H_
 #define LIBGLESV2_GLOBALSTATE_H_
 
+#include "common/tls.h"
+#include "libANGLE/Thread.h"
 #include "libANGLE/features.h"
 
 #include <mutex>
-
-namespace gl
-{
-class Context;
-
-Context *GetGlobalContext();
-Context *GetValidGlobalContext();
-
-}  // namespace gl
 
 namespace egl
 {
 class Debug;
 class Thread;
 
-Thread *GetCurrentThread();
+extern TLSIndex threadTLS;
+Thread *GetCurrentThreadInit();
 Debug *GetDebug();
 
+ANGLE_INLINE Thread *GetCurrentThread()
+{
+    Thread *current = nullptr;
+    if (threadTLS != TLS_INVALID_INDEX)
+        current = static_cast<Thread *>(TlsGetValue(threadTLS)); // super hack for perf testing. I didn't spent the time to make GetTLSValue inlineable.
+        //current = static_cast<Thread *>(GetTLSValue(threadTLS));
+
+    return (current ? current : GetCurrentThreadInit());
+}
+
 }  // namespace egl
+
+namespace gl
+{
+class Context;
+
+Context *GetGlobalContext();
+
+ANGLE_INLINE Context *GetValidGlobalContext()
+{
+    egl::Thread *thread = egl::GetCurrentThread();
+    return thread->getValidContext();
+}
+
+}  // namespace gl
 
 #if ANGLE_FORCE_THREAD_SAFETY == ANGLE_ENABLED
 namespace angle

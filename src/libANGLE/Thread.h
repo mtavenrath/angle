@@ -12,6 +12,7 @@
 #include <EGL/egl.h>
 
 #include "libANGLE/Debug.h"
+#include "libANGLE/Context.h"
 
 namespace gl
 {
@@ -51,11 +52,24 @@ class Thread : public LabeledObject
     Display *getCurrentDisplay() const;
 
   private:
+    void threadContextLost() const;
+
     EGLLabelKHR mLabel;
     EGLint mError;
     EGLenum mAPI;
     gl::Context *mContext;
 };
+
+ANGLE_INLINE gl::Context *Thread::getValidContext() const
+{
+    if (mContext && mContext->isContextLost())
+    {
+        threadContextLost();
+        return nullptr;
+    }
+
+    return mContext;
+}
 
 }  // namespace egl
 

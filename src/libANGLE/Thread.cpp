@@ -96,17 +96,6 @@ gl::Context *Thread::getContext() const
     return mContext;
 }
 
-gl::Context *Thread::getValidContext() const
-{
-    if (mContext && mContext->isContextLost())
-    {
-        mContext->handleError(gl::OutOfMemory() << "Context has been lost.");
-        return nullptr;
-    }
-
-    return mContext;
-}
-
 Display *Thread::getCurrentDisplay() const
 {
     if (mContext)
@@ -114,6 +103,12 @@ Display *Thread::getCurrentDisplay() const
         return mContext->getCurrentDisplay();
     }
     return nullptr;
+}
+
+
+void Thread::threadContextLost() const
+{
+    mContext->handleError(gl::OutOfMemory() << "Context has been lost.");
 }
 
 }  // namespace egl

@@ -85,6 +85,7 @@ class FastVector final
   private:
     void assign_from_initializer_list(std::initializer_list<value_type> init);
     void ensure_capacity(size_t capacity);
+    void increase_capacity(size_t capacity);
     bool uses_fixed_storage() const;
 
     Storage mFixedStorage;
@@ -95,7 +96,7 @@ class FastVector final
 
 template <class T, size_t N, class StorageN, size_t M, class StorageM>
 bool operator==(const FastVector<T, N, StorageN> &a, const FastVector<T, M, StorageM> &b)
-{
+{ 
     return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin());
 }
 
@@ -280,17 +281,19 @@ void FastVector<T, N, Storage>::clear()
 template <class T, size_t N, class Storage>
 ANGLE_INLINE void FastVector<T, N, Storage>::push_back(const value_type &value)
 {
-    if (mSize == mReservedSize)
-        ensure_capacity(mSize + 1);
-    mData[mSize++] = value;
+    size_t newSize = mSize + 1;
+    ensure_capacity(newSize);
+    mData[mSize] = value;
+    mSize        = newSize;
 }
 
 template <class T, size_t N, class Storage>
 ANGLE_INLINE void FastVector<T, N, Storage>::push_back(value_type &&value)
 {
-    if (mSize == mReservedSize)
-        ensure_capacity(mSize + 1);
-    mData[mSize++] = std::move(value);
+    size_t newSize = mSize + 1;
+    ensure_capacity(newSize);
+    mData[mSize] = std::move(value);
+    mSize          = newSize;
 }
 
 template <class T, size_t N, class Storage>
@@ -389,29 +392,37 @@ void FastVector<T, N, Storage>::ensure_capacity(size_t capacity)
     // We have a minimum capacity of N.
     if (mReservedSize < capacity)
     {
-        ASSERT(capacity > N);
-        size_type newSize = std::max(mReservedSize, N);
-        while (newSize < capacity)
-        {
-            newSize *= 2;
-        }
-
-        pointer newData = new value_type[newSize];
-
-        if (mSize > 0)
-        {
-            std::move(begin(), end(), newData);
-        }
-
-        if (!uses_fixed_storage())
-        {
-            delete[] mData;
-        }
-
-        mData         = newData;
-        mReservedSize = newSize;
+        increase_capacity(capacity);
     }
 }
+
+template <class T, size_t N, class Storage>
+void FastVector<T, N, Storage>::increase_capacity(size_t capacity)
+{
+    ASSERT(mReservedSize < capacity);
+    ASSERT(capacity > N);
+    size_type newSize = std::max(mReservedSize, N);
+    while (newSize < capacity)
+    {
+        newSize *= 2;
+    }
+
+    pointer newData = new value_type[newSize];
+
+    if (mSize > 0)
+    {
+        std::move(begin(), end(), newData);
+    }
+
+    if (!uses_fixed_storage())
+    {
+        delete[] mData;
+    }
+
+    mData         = newData;
+    mReservedSize = newSize;
+}
+
 }  // namespace angle
 
 #endif  // COMMON_FASTVECTOR_H_
