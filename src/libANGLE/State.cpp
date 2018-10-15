@@ -48,10 +48,10 @@ bool GetAlternativeQueryType(QueryType type, QueryType *alternativeType)
     }
 }
 
-}  // anonymous namepace
+}  // namespace
 
 template <typename BindingT, typename... ArgsT>
-void UpdateNonTFBufferBinding(const Context *context, BindingT *binding, ArgsT... args)
+void UpdateNonTFBufferBinding(BindingT *binding, const Context *context, ArgsT... args)
 {
     if (binding->get())
         (*binding)->onNonTFBindingChanged(context, -1);
@@ -61,7 +61,7 @@ void UpdateNonTFBufferBinding(const Context *context, BindingT *binding, ArgsT..
 }
 
 template <typename BindingT, typename... ArgsT>
-void UpdateTFBufferBinding(const Context *context, BindingT *binding, bool indexed, ArgsT... args)
+void UpdateTFBufferBinding(BindingT *binding, const Context *context, bool indexed, ArgsT... args)
 {
     if (binding->get())
         (*binding)->onTFBindingChanged(context, false, indexed);
@@ -70,18 +70,18 @@ void UpdateTFBufferBinding(const Context *context, BindingT *binding, bool index
         (*binding)->onTFBindingChanged(context, true, indexed);
 }
 
-void UpdateBufferBinding(const Context *context,
-                         BindingPointer<Buffer> *binding,
+void UpdateBufferBinding(BindingPointer<Buffer> *binding,
+                         const Context *context,
                          Buffer *buffer,
                          BufferBinding target)
 {
     if (target == BufferBinding::TransformFeedback)
     {
-        UpdateTFBufferBinding(context, binding, false, buffer);
+        UpdateTFBufferBinding(binding, context, false, buffer);
     }
     else
     {
-        UpdateNonTFBufferBinding(context, binding, buffer);
+        UpdateNonTFBufferBinding(binding, context, buffer);
     }
 }
 
@@ -94,11 +94,11 @@ void UpdateIndexedBufferBinding(const Context *context,
 {
     if (target == BufferBinding::TransformFeedback)
     {
-        UpdateTFBufferBinding(context, binding, true, buffer, offset, size);
+        UpdateTFBufferBinding(binding, context, true, buffer, offset, size);
     }
     else
     {
-        UpdateNonTFBufferBinding(context, binding, buffer, offset, size);
+        UpdateNonTFBufferBinding(binding, context, buffer, offset, size);
     }
 }
 
@@ -145,9 +145,7 @@ State::State(bool debug,
 {
 }
 
-State::~State()
-{
-}
+State::~State() {}
 
 void State::initialize(Context *context)
 {
@@ -243,7 +241,7 @@ void State::initialize(Context *context)
         mSamplerTextures[TextureType::External].resize(caps.maxCombinedTextureImageUnits);
     }
     mCompleteTextureBindings.reserve(caps.maxCombinedTextureImageUnits);
-    mCachedTexturesInitState = InitState::MayNeedInit;
+    mCachedTexturesInitState      = InitState::MayNeedInit;
     mCachedImageTexturesInitState = InitState::MayNeedInit;
     for (uint32_t textureIndex = 0; textureIndex < caps.maxCombinedTextureImageUnits;
          ++textureIndex)
@@ -314,7 +312,7 @@ void State::reset(const Context *context)
 
     for (auto type : angle::AllEnums<BufferBinding>())
     {
-        UpdateBufferBinding(context, &mBoundBuffers[type], nullptr, type);
+        UpdateBufferBinding(&mBoundBuffers[type], context, nullptr, type);
     }
 
     if (mProgram)
@@ -1493,24 +1491,136 @@ Query *State::getActiveQuery(QueryType type) const
     return mActiveQueries[type].get();
 }
 
+template <int target>
+void State::setBufferBindingT(const Context *context, Buffer *buffer)
+{
+    UpdateBufferBinding(&mBoundBuffers[target], context, buffer, target);
+}
+
+void State::setBufferBindingArray(const Context *context, Buffer *buffer)
+{
+    UpdateBufferBinding(&mBoundBuffers[BufferBinding::Array], context, buffer,
+                        BufferBinding::Array);
+}
+
+void State::setBufferBindingCopyRead(const Context *context, Buffer *buffer)
+{
+    UpdateBufferBinding(&mBoundBuffers[BufferBinding::CopyRead], context, buffer,
+                        BufferBinding::CopyRead);
+}
+
+void State::setBufferBindingCopyWrite(const Context *context, Buffer *buffer)
+{
+    UpdateBufferBinding(&mBoundBuffers[BufferBinding::CopyWrite], context, buffer,
+                        BufferBinding::CopyWrite);
+}
+
+void State::setBufferBindingTransformFeedback(const Context *context, Buffer *buffer)
+{
+    UpdateBufferBinding(&mBoundBuffers[BufferBinding::TransformFeedback], context, buffer,
+                        BufferBinding::TransformFeedback);
+}
+
+void State::setBufferBindingPixelPack(const Context *context, Buffer *buffer)
+{
+    UpdateNonTFBufferBinding(&mBoundBuffers[BufferBinding::PixelPack], context, buffer);
+    mDirtyBits.set(DIRTY_BIT_PACK_BUFFER_BINDING);
+}
+
+void State::setBufferBindingPixelUnpack(const Context *context, Buffer *buffer)
+{
+    UpdateNonTFBufferBinding(&mBoundBuffers[BufferBinding::PixelUnpack], context, buffer);
+    mDirtyBits.set(DIRTY_BIT_UNPACK_BUFFER_BINDING);
+}
+
+void State::setBufferBindingDrawIndirect(const Context *context, Buffer *buffer)
+{
+    UpdateNonTFBufferBinding(&mBoundBuffers[BufferBinding::DrawIndirect], context, buffer);
+    mDirtyBits.set(DIRTY_BIT_DRAW_INDIRECT_BUFFER_BINDING);
+}
+
+void State::setBufferBindingDispatchIndirect(const Context *context, Buffer *buffer)
+{
+    UpdateNonTFBufferBinding(&mBoundBuffers[BufferBinding::DispatchIndirect], context, buffer);
+    mDirtyBits.set(DIRTY_BIT_DISPATCH_INDIRECT_BUFFER_BINDING);
+}
+
+void State::setBufferBindingElementArray(const Context *context, Buffer *buffer)
+{
+    getVertexArray()->setElementArrayBuffer(context, buffer);
+    mDirtyObjects.set(DIRTY_OBJECT_VERTEX_ARRAY);
+}
+void State::setBufferBindingShaderStorage(const Context *context, Buffer *buffer)
+{
+    UpdateNonTFBufferBinding(&mBoundBuffers[BufferBinding::ShaderStorage], context, buffer);
+    mDirtyBits.set(DIRTY_BIT_SHADER_STORAGE_BUFFER_BINDING);
+}
+void State::setBufferBindingUniform(const Context *context, Buffer *buffer)
+{
+    UpdateBufferBinding(&mBoundBuffers[BufferBinding::Uniform], context, buffer,
+                        BufferBinding::Uniform);
+    mDirtyBits.set(DIRTY_BIT_UNIFORM_BUFFER_BINDINGS);
+}
+
+void State::setBufferBindingAtomicCounter(const Context *context, Buffer *buffer)
+{
+    UpdateBufferBinding(&mBoundBuffers[BufferBinding::AtomicCounter], context, buffer,
+                        BufferBinding::AtomicCounter);
+    mDirtyBits.set(DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING);
+}
+#if 0
+template <>
+void State::setBufferBindingT<BufferBinding::PixelPack>(const Context *context, Buffer *buffer)
+{
+    UpdateNonTFBufferBinding(&mBoundBuffers[target], context, buffer);
+    mDirtyBits.set(DIRTY_BIT_PACK_BUFFER_BINDING);
+}
+
+template <>
+void State::setBufferBindingT<BufferBinding::PixelUnpack>(const Context *context, Buffer *buffer)
+{
+    UpdateNonTFBufferBinding(&mBoundBuffers[target], context, buffer);
+    mDirtyBits.set(DIRTY_BIT_UNPACK_BUFFER_BINDING);
+}
+#endif
+
+State::setBinding State::bindings[] = {
+    &State::setBufferBindingArray,
+    &State::setBufferBindingAtomicCounter,
+    &State::setBufferBindingCopyRead,
+    &State::setBufferBindingCopyWrite,
+    &State::setBufferBindingDispatchIndirect,
+    &State::setBufferBindingDrawIndirect,
+    &State::setBufferBindingElementArray,
+    &State::setBufferBindingPixelPack,
+    &State::setBufferBindingPixelUnpack,
+    &State::setBufferBindingShaderStorage,
+    &State::setBufferBindingTransformFeedback,
+    &State::setBufferBindingUniform,
+};
+
+#if 0
 void State::setBufferBinding(const Context *context, BufferBinding target, Buffer *buffer)
 {
+    typedef void (State::*setBinding)(const Context *context, Buffer *buffer);
+    static const int x                  = int(BufferBinding::EnumCount);
+#if 1
     switch (target)
     {
         case BufferBinding::PixelPack:
-            UpdateNonTFBufferBinding(context, &mBoundBuffers[target], buffer);
+            UpdateNonTFBufferBinding(&mBoundBuffers[target], context, buffer);
             mDirtyBits.set(DIRTY_BIT_PACK_BUFFER_BINDING);
             break;
         case BufferBinding::PixelUnpack:
-            UpdateNonTFBufferBinding(context, &mBoundBuffers[target], buffer);
+            UpdateNonTFBufferBinding(&mBoundBuffers[target], context, buffer);
             mDirtyBits.set(DIRTY_BIT_UNPACK_BUFFER_BINDING);
             break;
         case BufferBinding::DrawIndirect:
-            UpdateNonTFBufferBinding(context, &mBoundBuffers[target], buffer);
+            UpdateNonTFBufferBinding(&mBoundBuffers[target], context, buffer);
             mDirtyBits.set(DIRTY_BIT_DRAW_INDIRECT_BUFFER_BINDING);
             break;
         case BufferBinding::DispatchIndirect:
-            UpdateNonTFBufferBinding(context, &mBoundBuffers[target], buffer);
+            UpdateNonTFBufferBinding(&mBoundBuffers[target], context, buffer);
             mDirtyBits.set(DIRTY_BIT_DISPATCH_INDIRECT_BUFFER_BINDING);
             break;
         case BufferBinding::ElementArray:
@@ -1518,22 +1628,27 @@ void State::setBufferBinding(const Context *context, BufferBinding target, Buffe
             mDirtyObjects.set(DIRTY_OBJECT_VERTEX_ARRAY);
             break;
         case BufferBinding::ShaderStorage:
-            UpdateNonTFBufferBinding(context, &mBoundBuffers[target], buffer);
+            UpdateNonTFBufferBinding(&mBoundBuffers[target], context, buffer);
             mDirtyBits.set(DIRTY_BIT_SHADER_STORAGE_BUFFER_BINDING);
             break;
         case BufferBinding::Uniform:
-            UpdateBufferBinding(context, &mBoundBuffers[target], buffer, target);
+            UpdateBufferBinding(&mBoundBuffers[target], context, buffer, target);
             mDirtyBits.set(DIRTY_BIT_UNIFORM_BUFFER_BINDINGS);
             break;
         case BufferBinding::AtomicCounter:
-            UpdateBufferBinding(context, &mBoundBuffers[target], buffer, target);
+            UpdateBufferBinding(&mBoundBuffers[target], context, buffer, target);
             mDirtyBits.set(DIRTY_BIT_ATOMIC_COUNTER_BUFFER_BINDING);
             break;
         default:
-            UpdateBufferBinding(context, &mBoundBuffers[target], buffer, target);
+            UpdateBufferBinding(&mBoundBuffers[target], context, buffer, target);
             break;
     }
+#else
+
+    (this->*(bindings[int(target)]))(context, buffer);
+#endif
 }
+#endif
 
 void State::setIndexedBufferBinding(const Context *context,
                                     BufferBinding target,
@@ -1608,7 +1723,7 @@ void State::detachBuffer(const Context *context, const Buffer *buffer)
     {
         if (mBoundBuffers[target].id() == bufferName)
         {
-            UpdateBufferBinding(context, &mBoundBuffers[target], nullptr, target);
+            UpdateBufferBinding(&mBoundBuffers[target], context, nullptr, target);
         }
     }
 
@@ -2050,10 +2165,12 @@ void State::getBooleanv(GLenum pname, GLboolean *params)
 
 void State::getFloatv(GLenum pname, GLfloat *params)
 {
-    // Please note: DEPTH_CLEAR_VALUE is included in our internal getFloatv implementation
-    // because it is stored as a float, despite the fact that the GL ES 2.0 spec names
-    // GetIntegerv as its native query function. As it would require conversion in any
-    // case, this should make no difference to the calling application.
+    // Please note: DEPTH_CLEAR_VALUE is included in our internal
+    // getFloatv implementation because it is stored as a float,
+    // despite the fact that the GL ES 2.0 spec names GetIntegerv as
+    // its native query function. As it would require conversion in
+    // any case, this should make no difference to the calling
+    // application.
     switch (pname)
     {
         case GL_LINE_WIDTH:
@@ -2171,11 +2288,12 @@ Error State::getIntegerv(const Context *context, GLenum pname, GLint *params)
         return NoError();
     }
 
-    // Please note: DEPTH_CLEAR_VALUE is not included in our internal getIntegerv implementation
-    // because it is stored as a float, despite the fact that the GL ES 2.0 spec names
-    // GetIntegerv as its native query function. As it would require conversion in any
-    // case, this should make no difference to the calling application. You may find it in
-    // State::getFloatv.
+    // Please note: DEPTH_CLEAR_VALUE is not included in our
+    // internal getIntegerv implementation because it is stored as a
+    // float, despite the fact that the GL ES 2.0 spec names
+    // GetIntegerv as its native query function. As it would require
+    // conversion in any case, this should make no difference to the
+    // calling application. You may find it in State::getFloatv.
     switch (pname)
     {
         case GL_ARRAY_BUFFER_BINDING:
@@ -2784,9 +2902,9 @@ angle::Result State::syncProgramTextures(const Context *context)
 
     ActiveTextureMask newActiveTextures;
 
-    // Initialize to the 'Initialized' state and set to 'MayNeedInit' if any texture is not
-    // initialized.
-    mCachedTexturesInitState = InitState::Initialized;
+    // Initialize to the 'Initialized' state and set to
+    // 'MayNeedInit' if any texture is not initialized.
+    mCachedTexturesInitState      = InitState::Initialized;
     mCachedImageTexturesInitState = InitState::Initialized;
 
     const ActiveTextureMask &activeTextures             = mProgram->getActiveSamplersMask();
@@ -2900,9 +3018,11 @@ void State::setObjectDirty(GLenum target)
 angle::Result State::onProgramExecutableChange(const Context *context, Program *program)
 {
     // OpenGL Spec:
-    // "If LinkProgram or ProgramBinary successfully re-links a program object
-    //  that was already in use as a result of a previous call to UseProgram, then the
-    //  generated executable code will be installed as part of the current rendering state."
+    // "If LinkProgram or ProgramBinary successfully re-links a
+    // program object
+    //  that was already in use as a result of a previous call to
+    //  UseProgram, then the generated executable code will be
+    //  installed as part of the current rendering state."
     ASSERT(program->isLinked());
 
     mDirtyBits.set(DIRTY_BIT_PROGRAM_EXECUTABLE);
@@ -2991,7 +3111,8 @@ void State::onActiveTextureStateChange(size_t textureIndex)
 
 void State::onUniformBufferStateChange(size_t uniformBufferIndex)
 {
-    // This could be represented by a different dirty bit. Using the same one keeps it simple.
+    // This could be represented by a different dirty bit. Using the
+    // same one keeps it simple.
     mDirtyBits.set(DIRTY_BIT_UNIFORM_BUFFER_BINDINGS);
 }
 

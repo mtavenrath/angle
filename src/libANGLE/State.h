@@ -268,7 +268,9 @@ class State : angle::NonCopyable
     void detachProgramPipeline(const Context *context, GLuint pipeline);
 
     //// Typed buffer binding point manipulation ////
-    void setBufferBinding(const Context *context, BufferBinding target, Buffer *buffer);
+    void setBufferBinding(const Context *context, BufferBinding target, Buffer *buffer) {
+        (this->*(bindings[int(target)]))(context, buffer);
+    }
     Buffer *getTargetBuffer(BufferBinding target) const;
     void setIndexedBufferBinding(const Context *context,
                                  BufferBinding target,
@@ -658,8 +660,26 @@ class State : angle::NonCopyable
     DirtyObjects mDirtyObjects;
     mutable AttributesMask mDirtyCurrentValues;
     ActiveTextureMask mDirtySamplers;
-};
 
+  private:
+    template <int Target>
+    void setBufferBindingT(const Context *context, Buffer *buffer);
+    void setBufferBindingArray(const Context *context, Buffer *buffer);
+    void setBufferBindingTransformFeedback(const Context *context, Buffer *buffer);
+    void setBufferBindingCopyWrite(const Context *context, Buffer *buffer);
+    void setBufferBindingCopyRead(const Context *context, Buffer *buffer);
+    void setBufferBindingPixelPack(const Context *context, Buffer *buffer);
+    void setBufferBindingPixelUnpack(const Context *context, Buffer *buffer);
+    void setBufferBindingDrawIndirect(const Context *context, Buffer *buffer);
+    void setBufferBindingDispatchIndirect(const Context *context, Buffer *buffer);
+    void setBufferBindingElementArray(const Context *context, Buffer *buffer);
+    void setBufferBindingShaderStorage(const Context *context, Buffer *buffer);
+    void setBufferBindingUniform(const Context *context, Buffer *buffer);
+    void setBufferBindingAtomicCounter(const Context *context, Buffer *buffer);
+
+    typedef void (State::*setBinding)(const Context *context, Buffer *buffer);
+    static setBinding bindings[int(BufferBinding::EnumCount)];
+};
 }  // namespace gl
 
 #endif  // LIBANGLE_STATE_H_
