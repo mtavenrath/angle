@@ -23,6 +23,16 @@ ANGLE_INLINE bool ValidateDrawArrays(Context *context,
     return ValidateDrawArraysCommon(context, mode, first, count, 1);
 }
 
+ANGLE_INLINE bool ValidateDrawElements(Context *context,
+                          PrimitiveMode mode,
+                          GLsizei count,
+                          GLenum type,
+                          const void *indices)
+{
+    return ValidateDrawElementsCommon(context, mode, count, type, indices, 1);
+}
+
+
 ANGLE_INLINE bool ValidateUniform2f(Context *context, GLint location, GLfloat x, GLfloat y)
 {
     return ValidateUniform(context, GL_FLOAT_VEC2, location, 1);
