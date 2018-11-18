@@ -179,9 +179,12 @@ void DrawElementsPerfBenchmark::drawBenchmark()
     }
     else
     {
-        for (unsigned int it = 0; it < params.iterationsPerStep; it++)
+        auto type  = params.type;
+        auto count = static_cast<GLsizei>(mCount);
+        auto iterationsPerStep = params.iterationsPerStep;
+        for (unsigned int it = 0; it < iterationsPerStep; it++)
         {
-            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mCount), params.type, 0);
+            glDrawElements(GL_TRIANGLES, count, type, 0);
         }
     }
 
